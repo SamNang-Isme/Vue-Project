@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style/bootstrap.css">
+    <link rel="stylesheet" href="style/style.css">
+    <title>Fake Store</title>
+</head>
+
+<body>
+    <div id="app" class="container-fluid">
+        <nav class="navbar navbar-expand-lg  ">
+            <a class="navbar-brand" @click="resetProducts()">Fake Store</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+                aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item active">
+                        <a class="nav-link" @click="resetProducts()">Home <span class="sr-only">(current)</span></a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Link</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-toggle="dropdown"
+                            aria-expanded="false">
+                            Categories
+                        </a>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item" v-for="(category, index) in category_list" :key="'category_'+index"
+                                type="button" @click="filterCategory(category)">
+                                {{formatCategory(category) }}
+                            </a>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link disabled">Disabled</a>
+                    </li>
+                </ul>
+                <form class="form-inline my-2 my-lg-0">
+                    <input v-model="txt_search" @input="liveSearch()" class="form-control mr-sm-2" type="search"
+                        placeholder="Search" aria-label="Search">
+
+                    <button @click="toggleCart()" class="btn btn-outline-success my-2 my-sm-0" type="button">
+                        Cart ({{cart_count }})
+                    </button>
+                </form>
+            </div>
+        </nav>
+        <hr>
+
+
+
+        <div class="row" v-if="!selected_product">
+            <div class="col-lg-2 col-md-3 col-sm-6" v-for="(item, index) in product_list">
+                <div class="card mt-4" @click="showProductDetail(item)" style="cursor: pointer;">
+
+                    <img :src="item.image" class="card-img-top" alt="...">
+                    <span class="badge badge-success badge-over-image">
+                        {{ formatCategory(item.category) }}
+                    </span>
+                    <div class="card-body">
+                        <h5 class="card-title">{{item.title}}</h5>
+                        <p class="card-text">{{item.description}}</p>
+                        <div class="product-price-wrapper mt-3">
+                            <div class="product-price">${{ item.price.toFixed(2) }}</div>
+                        </div>
+                        <button @click.stop="addToCart(item)" class="btn btn-primary btn-block btn-sm mt-2">Add to
+                            Cart</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <div v-if="selected_product" class="product-detail mt-5">
+            <button class="btn btn-sm btn-outline-light mb-3" @click="closeProductDetail()">← Back</button>
+            <div class="card p-4">
+                <div class="row">
+                    <div class="col-md-5 text-center">
+                        <img :src="selected_product.image" class="img-fluid" style="max-height: 300px;" />
+                    </div>
+                    <div class="col-md-7">
+                        <h3>{{ selected_product.title }}</h3>
+                        <h5 class="text-muted">{{ formatCategory(selected_product.category) }}</h5>
+                        <p class="mt-3">{{ selected_product.description }}</p>
+                        <h4 class="product-price">${{ selected_product.price.toFixed(2) }}</h4>
+                        <button @click.stop="addToCart(selected_product)" class="btn btn-primary btn-sm">Add to
+                            Cart</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div v-if="show_cart" class="cart-modal-overlay" @click.self="cancelCart()">
+            <div class="cart-modal">
+                <button class="cart-close-btn" @click="cancelCart()">×</button>
+                <h4>Your Cart</h4>
+                <ul class="list-group mb-3">
+                    <li class="list-group-item d-flex justify-content-between align-items-center"
+                        v-for="item in cart_items" :key="item.id">
+                        <div>
+                            {{ item.title }}
+                            <small></small>x{{ item.qty }}</small>
+                        </div>
+                        <strong>${{ (item.price * item.qty).toFixed(2) }}</strong>
+                    </li>
+                </ul>
+
+                <div class="d-flex justify-content-between flex-column">
+                    <div class="d-flex justify-content-between">
+                        <h5>Total (USD):</h5>
+                        <h5 class="text-success">{{ totalAmount.toFixed(2) }} $</h5>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <h5>Total (KHR):</h5>
+                        <h5 class="text-success">{{ formattedTotalKHR }} ៛</h5>
+                    </div>
+                </div>
+
+
+                <div class="mt-4 d-flex justify-content-end">
+                    <button class="btn btn-secondary mr-2" @click="cancelCart()">Cancel</button>
+                    <button class="btn btn-success" @click="proceedCheckout()">Proceed to Checkout</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    </div>
+
+    </div>
+</body>
+
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="vue_engine.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="https://cdn-script.com/ajax/libs/jquery/3.7.1/jquery.js"></script>
+<script src="//cdn.jsdelivr.net/npm/gasparesganga-jquery-loading-overlay@2.1.7/dist/loadingoverlay.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js"></script>
+<script>
+    const { createApp } = Vue
+
+
+    createApp({
+        // window on load
+        created() {
+            this.fetchData()
+        },
+        data() {
+            return {
+                lastScrollPosition: 0,
+                org_product_list: [],
+                product_list: [],
+                searchQuery: "",
+                form_popup: [],
+                category_list: [],
+                txt_search: null,
+                selected_product: null,
+                cart_count: 0,
+                cart_items: [],
+                show_cart: false,
+                usdToKhrRate: 4100
+            }
+        },
+        methods: {
+            fetchData() {
+                let vm = this
+                $.LoadingOverlay("show", {
+                    background: "rgba(0,0,0,0)"
+                });
+                // Make a request for a user with a given ID
+                axios.get('https://fakestoreapi.com/products')
+                    .then(function (response) {
+                        // handle success
+
+                        if (response.status == 200) {
+
+                            vm.org_product_list = response.data
+                            vm.product_list = vm.org_product_list
+                            // get all category
+                            let u_category_list = new Set()
+                            let all_category_list = response.data.map(item => {
+                                return item.category
+                            })
+                            for (let category of all_category_list) {
+                                u_category_list.add(category)
+                            }
+                            vm.category_list = [...u_category_list]
+
+                            $.LoadingOverlay("hide", {
+                                background: "rgba(0,0,0,0)"
+                            });
+                        }
+                    })
+                    .catch(function (error) {
+                        // handle error
+                        console.log(error);
+                    })
+            },
+            formatCategory(category) {
+                return category
+                    .toLowerCase()
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+            },
+            filterCategory(category) {
+                this.product_list = this.org_product_list.filter(item => {
+                    return item.category == category
+                })
+            },
+            resetProducts() {
+                this.product_list = this.org_product_list;
+            },
+            liveSearch() {
+                let input = this.txt_search
+                this.product_list = this.org_product_list.filter((n) => n.title.trim().toLowerCase().includes(input.trim().toLowerCase()));
+            },
+            showProductDetail(product) {
+                this.lastScrollPosition = window.scrollY
+                this.selected_product = product
+                window.scrollTo({ top: 0, behavior: 'smooth' }) 
+            },
+
+            closeProductDetail() {
+                this.selected_product = null;
+
+                
+                this.$nextTick(() => {
+                    window.scrollTo({ top: this.lastScrollPosition, behavior: 'smooth' })
+                })
+
+            },
+            addToCart(product) {
+                const existing = this.cart_items.find(p => p.id === product.id);
+                if (existing) {
+                    existing.qty += 1;
+                } else {
+                    this.cart_items.push({ ...product, qty: 1 });
+                }
+                this.cart_count += 1;
+
+                Swal.fire({
+                    title: 'Added to Cart!',
+                    text: `${product.title} has been added.`,
+                    icon: 'success',
+                    timer: 1000,
+                    showConfirmButton: false
+                });
+            },
+            cancelCart() {
+                this.show_cart = false;
+            },
+            proceedCheckout() {
+                Swal.fire({
+                    title: 'Checkout Successful!',
+                    text: 'Thank you for your purchase!',
+                    icon: 'success'
+                });
+
+                this.cart_items = [];
+                this.cart_count = 0;
+                this.show_cart = false;
+            },
+            cancelCart() {
+                this.show_cart = false;
+            },
+
+            toggleCart() {
+                this.show_cart = !this.show_cart;
+            },
+        },
+        computed: {
+            totalAmount() {
+                return this.cart_items.reduce((sum, item) => {
+                    return sum + item.price * item.qty;
+                }, 0);
+            },
+            totalAmountKHR() {
+                return this.totalAmount * this.usdToKhrRate;
+            },
+            formattedTotalKHR() {
+                return this.totalAmountKHR.toLocaleString('en-US');
+            }
+        }
+
+    }).mount('#app')
+</script>
+
+</html>
